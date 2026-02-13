@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # -----------------------------------------------------------------
+  # 1. LE MAÎTRE (PRIMARY) - Seul autorisé à écrire (INSERT/UPDATE)
+  # -----------------------------------------------------------------
+  postgres-primary:
+    image: bitnami/postgresql:latest
+    container_name: macrocoach-primary
+    ports:
+      - "5435:5432"
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_PASSWORD=admin_password
+      - POSTGRESQL_DATABASE=macrocoach_db
+    volumes:
+      - ./data/primary:/bitnami/postgresql
+    networks:
+      - macrocoach-network
+
+  # -----------------------------------------------------------------
+  # 2. LE RÉPLICA 1 (SLAVE) - Lecture seule (SELECT)
+  # -----------------------------------------------------------------
+  postgres-replica-1:
+    image: bitnami/postgresql:latest
+    container_name: macrocoach-replica-1
+    ports:
+      - "5436:5432"
+    depends_on:
+      - postgres-primary
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_MASTER_HOST=postgres-primary
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - POSTGRESQL_PASSWORD=admin_password
+    volumes:
+      - ./data/replica1:/bitnami/postgresql
+    networks:
+      - macrocoach-network
+
+  # -----------------------------------------------------------------
+  # 3. LE RÉPLICA 2 (SLAVE) - Lecture seule (SELECT)
+  # -----------------------------------------------------------------
+  postgres-replica-2:
+    image: bitnami/postgresql:latest
+    container_name: macrocoach-replica-2
+    ports:
+      - "5437:5432"
+    depends_on:
+      - postgres-primary
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_MASTER_HOST=postgres-primary
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - POSTGRESQL_PASSWORD=admin_password
+    volumes:
+      - ./data/replica2:/bitnami/postgresql
+    networks:
+      - macrocoach-network
+
+  # -----------------------------------------------------------------
+  # 4. TON API BACKEND (NODE.JS)
+  # -----------------------------------------------------------------
+  api:
+    build: . # Cherche un Dockerfile dans le dossier courant
+    container_name: macrocoach-api
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST_WRITE=postgres-primary
+      - DB_HOST_READ_1=postgres-replica-1
+      - DB_HOST_READ_2=postgres-replica-2
+      - DB_USER=postgres
+      - DB_PASS=admin_password
+      - DB_NAME=macrocoach_db
+    depends_on:
+      - postgres-primary
+      - postgres-replica-1
+      - postgres-replica-2
+    networks:
+      - macrocoach-network
+
+  # -----------------------------------------------------------------
+  # 5. L'INTERFACE D'ADMINISTRATION (Optionnel mais recommandé)
+  # -----------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: macrocoach-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@macrocoach.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    networks:
+      - macrocoach-network
+
+networks:
+  macrocoach-network:
+    driver: bridge
