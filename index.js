@@ -55,7 +55,6 @@ const getReadPool = () => {
 
 
 // --- Initialization ---
-// --- Initialization ---
 const initDB = async (retries = 5, delay = 2000) => {
     for (let i = 0; i < retries; i++) {
         try {

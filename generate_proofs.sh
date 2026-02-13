@@ -1,6 +1,3 @@
-#!/bin/bash
-# Script de démonstration pour le Livrable 7 - Preuves Réplication & Panne
-
 echo "\n======================================================="
 echo "🔵 1. PREUVE DE RÉPLICATION (Lecture sur Replicas)"
 echo "======================================================="
